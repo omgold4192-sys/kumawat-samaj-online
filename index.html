@@ -290,24 +290,25 @@ async function openMemberAccount(id){
   $('tab-ledger').classList.add('hidden');
   $('memberAccount').classList.remove('hidden');
 
-    // सदस्य के रिकॉर्ड local loaded data से लें। इससे पुराने database में member_id column न होने पर भी खाता खुलेगा।
+  // सदस्य के रिकॉर्ड local loaded data से लें। इससे पुराने database में member_id column न होने पर भी खाता खुलेगा।
   let memberIncome=[], memberExpense=[];
 
   // पुराने records जिनमें member_id नहीं है, उनके लिए phone/name fallback
   const mp=normalizePhone(m.phone), mn=normalizeName(m.name);
   const oldIncome=incomes.filter(x=>{
-    if(x.member_id!=null && String(x.member_id)===String(m.id)) return true;
+    if(x.member_id!=null && String(x.member_id)===String(m.id))return true;
     const xp=normalizePhone(x.phone), xn=normalizeName(x.name);
     return !x.member_id && ((mp&&xp&&mp===xp)||(!mp&&mn&&xn===mn)||(mp&&!xp&&mn===xn));
   });
   const oldExpense=expenses.filter(x=>{
-    if(x.member_id!=null && String(x.member_id)===String(m.id)) return true;
-    const xp=normalizePhone(x.phone), xn=normalizeName(x.name);
-    return !x.member_id && ((mp&&xp&&mp===xp)||(!mp&&mn&&xn===mn)||(mp&&!xp&&mn===xn));
+    if(x.member_id!=null && String(x.member_id)===String(m.id))return true;
+    return false;
   });
-  memberIncome=oldIncome;
-  memberExpense=oldExpense;
 
+  memberIncome=[];
+  memberExpense=[];
+
+  const mergeUnique=(arr, extra)=>{
     const seen=new Set(arr.map(x=>String(x.id)));
     extra.forEach(x=>{if(!seen.has(String(x.id))){arr.push(x);seen.add(String(x.id))}});
     return arr;
