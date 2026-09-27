@@ -310,7 +310,7 @@ async function openMemberAccount(id){
   memberExpense=oldExpense;
 
   const mergeUnique=(arr, extra)=>{
-  const mergeUnique=(arr, extra)=>{
+  
     const seen=new Set(arr.map(x=>String(x.id)));
     extra.forEach(x=>{if(!seen.has(String(x.id))){arr.push(x);seen.add(String(x.id))}});
     return arr;
