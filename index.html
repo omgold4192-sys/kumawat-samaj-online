@@ -279,90 +279,47 @@ function render(){
     '</tr>').join('')+'</table>'
 }
 
-async function openMemberAccount(id){
+function openMemberAccount(id){
   const m=members.find(x=>String(x.id)===String(id));
   if(!m)return alert('सदस्य नहीं मिला');
   currentMember=m;
-
   $('tab-members').classList.add('hidden');
   $('tab-income').classList.add('hidden');
   $('tab-expense').classList.add('hidden');
   $('tab-ledger').classList.add('hidden');
   $('memberAccount').classList.remove('hidden');
-
-  // सदस्य के रिकॉर्ड local loaded data से लें। इससे पुराने database में member_id column न होने पर भी खाता खुलेगा।
-  let memberIncome=[], memberExpense=[];
-
-  // पुराने records जिनमें member_id नहीं है, उनके लिए phone/name fallback
   const mp=normalizePhone(m.phone), mn=normalizeName(m.name);
   const oldIncome=incomes.filter(x=>{
     if(x.member_id!=null && String(x.member_id)===String(m.id))return true;
+    if(x.member_id) return false;
     const xp=normalizePhone(x.phone), xn=normalizeName(x.name);
-    return !x.member_id && ((mp&&xp&&mp===xp)||(!mp&&mn&&xn===mn)||(mp&&!xp&&mn===xn));
+    return (mp&&xp&&mp===xp) || (mn&&xn&&mn===xn) || (mp&&!xp&&mn&&xn===mn);
   });
-    const oldExpense=expenses.filter(x=>{
+  const oldExpense=expenses.filter(x=>{
     if(x.member_id!=null && String(x.member_id)===String(m.id))return true;
-    const xp=normalizePhone(x.phone), xn=normalizeName(x.name);
-    return !x.member_id && ((mp&&xp&&mp===xp)||(!mp&&mn&&xn===mn)||(mp&&!xp&&mn===xn));
+    if(x.member_id) return false;
+    const xn=normalizeName(x.payee || x.name || '');
+    return mn && xn && mn===xn;
   });
-
-  memberIncome=oldIncome;
-  memberExpense=oldExpense;
-
-  const mergeUnique=(arr, extra)=>{
-  
-    const seen=new Set(arr.map(x=>String(x.id)));
-    extra.forEach(x=>{if(!seen.has(String(x.id))){arr.push(x);seen.add(String(x.id))}});
-    return arr;
-  };
-  memberIncome=mergeUnique(memberIncome,oldIncome);
-  memberExpense=mergeUnique(memberExpense,oldExpense);
-  memberIncome.sort((x,y)=>String(y.entry_date||'').localeCompare(String(x.entry_date||'')));
-  memberExpense.sort((x,y)=>String(y.entry_date||'').localeCompare(String(x.entry_date||'')));
-
+  const memberIncome=oldIncome.slice().sort((x,y)=>String(y.entry_date||'').localeCompare(String(x.entry_date||'')));
+  const memberExpense=oldExpense.slice().sort((x,y)=>String(y.entry_date||'').localeCompare(String(x.entry_date||'')));
   const totalIn=memberIncome.reduce((s,x)=>s+Number(x.amount||0),0);
   const totalOut=memberExpense.reduce((s,x)=>s+Number(x.amount||0),0);
-
-  $('memberInfo').innerHTML='<b>नाम:</b> '+escapeHtml(m.name||'')+
-    ' &nbsp; | &nbsp; <b>मोबाइल:</b> '+escapeHtml(m.phone||'')+
-    ' &nbsp; | &nbsp; <b>गांव/पता:</b> '+escapeHtml(m.village||'');
-
+  $('memberInfo').innerHTML='<b>नाम:</b> '+escapeHtml(m.name||'')+' &nbsp; | &nbsp; <b>मोबाइल:</b> '+escapeHtml(m.phone||'')+' &nbsp; | &nbsp; <b>गांव/पता:</b> '+escapeHtml(m.village||'');
   $('memberTotalIn').textContent=money(totalIn);
   $('memberTotalOut').textContent=money(totalOut);
   $('memberBalance').textContent=money(totalIn-totalOut);
-
   const all=[
-    ...memberIncome.map(x=>({date:x.entry_date,type:'जमा',doc:x.receipt_no||'',reason:x.reason||x.category||'',mode:x.payment_mode||x.mode||'',amount:Number(x.amount||0)})),
-    ...memberExpense.map(x=>({date:x.entry_date,type:'खर्च',doc:x.voucher_no||'',reason:x.reason||x.category||'',mode:x.payment_mode||x.mode||'',amount:-Number(x.amount||0)}))
+    ...memberIncome.map(x=>({date:x.entry_date,type:'जमा',doc:x.receipt_no||'',reason:x.reason||'',mode:x.payment_mode||'',amount:Number(x.amount||0)})),
+    ...memberExpense.map(x=>({date:x.entry_date,type:'खर्च',doc:x.voucher_no||'',reason:x.reason||'',mode:x.payment_mode||'',amount:-Number(x.amount||0)}))
   ].sort((x,y)=>String(y.date||'').localeCompare(String(x.date||'')));
-
-  $('memberAccountTable').innerHTML=
-    '<table><tr><th>तारीख</th><th>प्रकार</th><th>रसीद/Voucher</th><th>कारण</th><th>Mode</th><th>राशि</th></tr>'+
-    all.map(x=>'<tr><td>'+escapeHtml(x.date||'')+'</td><td>'+escapeHtml(x.type)+'</td><td>'+
-      escapeHtml(x.doc||'')+'</td><td>'+escapeHtml(x.reason||'')+'</td><td>'+
-      escapeHtml(x.mode||'')+'</td><td>'+money(x.amount)+'</td></tr>').join('')+
-    '</table>';
-
   if(!all.length){
-    $('memberAccountTable').innerHTML='<div class="msg">इस सदस्य के नाम से अभी कोई जमा/खर्च रिकॉर्ड नहीं मिला। आगे की जमा इस सदस्य के खाते से अपने आप जुड़ेगी।</div>';
+    $('memberAccountTable').innerHTML='<div class="msg">इस सदस्य के नाम से अभी कोई जमा/खर्च रिकॉर्ड नहीं मिला।</div>';
+  } else {
+    $('memberAccountTable').innerHTML='<table><tr><th>तारीख</th><th>प्रकार</th><th>रसीद/Voucher</th><th>कारण</th><th>Mode</th><th>राशि</th></tr>'+all.map(x=>'<tr><td>'+escapeHtml(x.date||'')+'</td><td>'+escapeHtml(x.type)+'</td><td>'+escapeHtml(x.doc||'')+'</td><td>'+escapeHtml(x.reason||'')+'</td><td>'+escapeHtml(x.mode||'')+'</td><td>'+money(x.amount)+'</td></tr>').join('')+'</table>';
   }
   window.scrollTo({top:0,behavior:'smooth'});
 }
-
-function closeMemberAccount(){
-  currentMember=null;
-  $('memberAccount').classList.add('hidden');
-  showTab('members');
-}
-
-function whatsappMemberStatement(){
-  if(!currentMember)return;
-  const rows=incomes.filter(x=>{
-    const p=normalizePhone(currentMember.phone),xp=normalizePhone(x.phone);
-    const n=normalizeName(currentMember.name),xn=normalizeName(x.name);
-    return (x.member_id!=null && String(x.member_id)===String(currentMember.id)) ||
-      (!x.member_id && ((p&&xp&&p===xp)||(!p&&n===xn)||(p&&!xp&&n===xn)));
-  });
   const total=rows.reduce((s,x)=>s+Number(x.amount||0),0);
   const text='कुमावत समाज विकास संस्था, बिबवेवाड़ी, पुणे\n\nसदस्य खाते का विवरण\nनाम: '+(currentMember.name||'')+
     '\nमोबाइल: '+(currentMember.phone||'')+
