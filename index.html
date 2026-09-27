@@ -300,14 +300,16 @@ async function openMemberAccount(id){
     const xp=normalizePhone(x.phone), xn=normalizeName(x.name);
     return !x.member_id && ((mp&&xp&&mp===xp)||(!mp&&mn&&xn===mn)||(mp&&!xp&&mn===xn));
   });
-  const oldExpense=expenses.filter(x=>{
+    const oldExpense=expenses.filter(x=>{
     if(x.member_id!=null && String(x.member_id)===String(m.id))return true;
-    return false;
+    const xp=normalizePhone(x.phone), xn=normalizeName(x.name);
+    return !x.member_id && ((mp&&xp&&mp===xp)||(!mp&&mn&&xn===mn)||(mp&&!xp&&mn===xn));
   });
 
-  memberIncome=[];
-  memberExpense=[];
+  memberIncome=oldIncome;
+  memberExpense=oldExpense;
 
+  const mergeUnique=(arr, extra)=>{
   const mergeUnique=(arr, extra)=>{
     const seen=new Set(arr.map(x=>String(x.id)));
     extra.forEach(x=>{if(!seen.has(String(x.id))){arr.push(x);seen.add(String(x.id))}});
