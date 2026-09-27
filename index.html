@@ -290,10 +290,8 @@ async function openMemberAccount(id){
   $('tab-ledger').classList.add('hidden');
   $('memberAccount').classList.remove('hidden');
 
-  // पहले Member ID से रिकॉर्ड लें
+  // सदस्य के रिकॉर्ड local loaded data से लें। इससे पुराने database में member_id column न होने पर भी खाता खुलेगा।
   let memberIncome=[], memberExpense=[];
-  let a=await sb.from('income').select('*').eq('member_id',m.id).order('entry_date',{ascending:false});
-  let b=await sb.from('expense').select('*').eq('member_id',m.id).order('entry_date',{ascending:false});
 
   // पुराने records जिनमें member_id नहीं है, उनके लिए phone/name fallback
   const mp=normalizePhone(m.phone), mn=normalizeName(m.name);
@@ -307,8 +305,8 @@ async function openMemberAccount(id){
     return false;
   });
 
-  memberIncome=(a.error?[]:(a.data||[]));
-  memberExpense=(b.error?[]:(b.data||[]));
+  memberIncome=[];
+  memberExpense=[];
 
   const mergeUnique=(arr, extra)=>{
     const seen=new Set(arr.map(x=>String(x.id)));
