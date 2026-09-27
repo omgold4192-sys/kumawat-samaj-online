@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>कुमावत समाज अकाउंट — Online</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#f4f5f7;color:#222}
+.top{background:#8d1f20;color:#fff;padding:22px 18px}.top h1{margin:0;font-size:25px}.top p{margin:7px 0 0}
+.wrap{max-width:1100px;margin:auto;padding:16px}
+.card{background:#fff;border-radius:16px;padding:18px;margin:14px 0;box-shadow:0 2px 10px #0000000d}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.stat{padding:16px;border-radius:14px;background:#fff}.stat b{font-size:25px;display:block;margin-top:6px}
+.btn{border:0;border-radius:10px;padding:11px 14px;background:#8d1f20;color:#fff;font-size:15px;cursor:pointer}
+.btn.alt{background:#eee;color:#222}.btn.green{background:#18794e}.btn.blue{background:#1769aa}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.field{width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:16px;margin:7px 0}
+.half{flex:1;min-width:200px}.hidden{display:none}.msg{padding:10px;border-radius:10px;background:#fff4e5;margin:10px 0}
+.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #eee;text-align:left;white-space:nowrap}th{background:#fafafa}
+.tabs{display:flex;gap:8px;overflow:auto;margin:10px 0}.tabs button{white-space:nowrap}
+.small{font-size:13px;color:#666}.pill{display:inline-block;padding:5px 9px;border-radius:20px;background:#eee}
+.login{max-width:440px;margin:55px auto}.right{margin-left:auto}
+.member-name{font-weight:700}.account-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.account-stat{background:#f7f7f7;padding:14px;border-radius:12px;min-width:180px}.account-stat b{font-size:22px;display:block;margin-top:5px}
+.member-row{cursor:pointer}.member-row:hover{background:#fff8f8}
+.member-open{font-weight:700;color:#8d1f20;cursor:pointer;text-decoration:underline}
+@media(max-width:700px){.grid{grid-template-columns:1fr}.top h1{font-size:21px}.wrap{padding:10px}}
+@media print{.no-print{display:none!important}body{background:#fff}.card{box-shadow:none}}
+</style>
+</head>
+<body>
+
+<div id="login" class="wrap login">
+  <div class="card">
+    <h2>कुमावत समाज अकाउंट</h2><p class="small">Online Database Version</p>
+    <div id="configBox" class="hidden">
+      <div class="msg">पहली बार सेटअप: Supabase Project URL और Public/Publishable Key डालें। यह जानकारी इसी browser में save होगी।</div>
+      <input id="sbUrl" class="field" placeholder="Supabase Project URL (https://....supabase.co)">
+      <input id="sbKey" class="field" placeholder="Supabase Public/Publishable Key">
+      <button class="btn" onclick="saveConfig()">सेटिंग सेव करें</button>
+    </div>
+    <div id="authBox" class="hidden">
+      <input id="email" class="field" type="email" placeholder="Admin Email">
+      <input id="password" class="field" type="password" placeholder="Password">
+      <div class="row">
+        <button class="btn" onclick="login()">Login</button>
+        <button class="btn alt" onclick="signup()">पहला Admin बनाएं</button>
+      </div>
+      <div id="loginMsg" class="small"></div>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <div class="top">
+    <div class="wrap" style="padding:0">
+      <div class="row">
+        <div><h1>कुमावत समाज अकाउंट</h1><p>कुमावत समाज विकास संस्था, बिबवेवाड़ी, पुणे</p></div>
+        <button class="btn alt right" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="grid">
+      <div class="stat">कुल जमा<b id="totalIn">₹0</b></div>
+      <div class="stat">कुल खर्च<b id="totalOut">₹0</b></div>
+      <div class="stat">बाकी<b id="balance">₹0</b></div>
+    </div>
+
+    <div class="tabs no-print">
+      <button class="btn" onclick="showTab('income')">＋ जमा / रसीद</button>
+      <button class="btn" onclick="showTab('expense')">－ खर्च / Voucher</button>
+      <button class="btn" onclick="showTab('members')">👥 सदस्य</button>
+      <button class="btn" onclick="showTab('ledger')">📒 Ledger</button>
+      <button class="btn" onclick="loadAll()">↻ Refresh</button>
+    </div>
+
+    <div id="tab-income" class="card">
+      <h2>जमा / रसीद</h2>
+      <div class="row">
+        <div class="half"><input id="inName" class="field" placeholder="नाम"></div>
+        <div class="half"><input id="inPhone" class="field" placeholder="मोबाइल नंबर"></div>
+        <div class="half"><input id="inAmount" class="field" type="number" min="0" placeholder="राशि ₹"></div>
+        <div class="half"><input id="inReason" class="field" placeholder="कारण / चंदा"></div>
+        <div class="half"><select id="inMode" class="field"><option>Cash</option><option>UPI</option><option>Bank</option></select></div>
+        <div class="half"><input id="inDate" class="field" type="date"></div>
+      </div>
+      <button class="btn" onclick="addIncome()">जमा सेव करें</button>
+    </div>
+
+    <div id="tab-expense" class="card hidden">
+      <h2>खर्च / Voucher</h2>
+      <div class="row">
+        <div class="half"><input id="exPayee" class="field" placeholder="किसको भुगतान किया"></div>
+        <div class="half"><input id="exAmount" class="field" type="number" min="0" placeholder="राशि ₹"></div>
+        <div class="half"><input id="exReason" class="field" placeholder="खर्च का कारण"></div>
+        <div class="half"><select id="exMode" class="field"><option>Cash</option><option>UPI</option><option>Bank</option></select></div>
+        <div class="half"><input id="exDate" class="field" type="date"></div>
+      </div>
+      <button class="btn" onclick="addExpense()">खर्च सेव करें</button>
+    </div>
+
+    <div id="tab-members" class="card hidden">
+      <h2>सदस्य</h2>
+      <div class="row">
+        <div class="half"><input id="mName" class="field" placeholder="सदस्य नाम"></div>
+        <div class="half"><input id="mPhone" class="field" placeholder="मोबाइल"></div>
+        <div class="half"><input id="mVillage" class="field" placeholder="गांव / पता"></div>
+        <div class="half"><input id="mNote" class="field" placeholder="नोट"></div>
+      </div>
+      <button class="btn" onclick="addMember()">सदस्य सेव करें</button>
+      <div id="membersTable" class="tablewrap"></div>
+    </div>
+
+    <div id="tab-ledger" class="card hidden">
+      <h2>Ledger / हिसाब</h2>
+      <div class="row no-print">
+        <button class="btn alt" onclick="printLedger()">🖨️ Print</button>
+        <button class="btn alt" onclick="exportCSV()">⬇️ CSV</button>
+      </div>
+      <div id="ledgerTable" class="tablewrap"></div>
+    </div>
+
+    <div id="memberAccount" class="card hidden">
+      <div class="account-head no-print">
+        <button class="btn alt" onclick="closeMemberAccount()">← सदस्य सूची</button>
+        <div class="row">
+          <button class="btn green" onclick="whatsappMemberStatement()">💬 WhatsApp</button>
+          <button class="btn alt" onclick="printMemberAccount()">🖨️ Print</button>
+        </div>
+      </div>
+      <div id="memberAccountPrint">
+        <h2>📖 सदस्य का पूरा खाता</h2>
+        <div id="memberInfo" class="msg"></div>
+        <div class="grid">
+          <div class="account-stat">कुल जमा<b id="memberTotalIn">₹0</b></div>
+          <div class="account-stat">कुल खर्च<b id="memberTotalOut">₹0</b></div>
+          <div class="account-stat">बाकी<b id="memberBalance">₹0</b></div>
+        </div>
+        <div id="memberAccountTable" class="tablewrap" style="margin-top:15px"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <span class="small">Online DB connected: <span id="status" class="pill">checking...</span></span>
+        <span class="small right">V3 • Member Accounts</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let sb=null, incomes=[], expenses=[], members=[], currentMember=null;
+const $=id=>document.getElementById(id);
+const money=n=>'₹'+Number(n||0).toLocaleString('en-IN');
+
+function init(){
+  const u=localStorage.getItem('ks_sb_url'),k=localStorage.getItem('ks_sb_key');
+  if(u&&k){$('sbUrl').value=u;$('sbKey').value=k;$('authBox').classList.remove('hidden');connect(u,k)}
+  else $('configBox').classList.remove('hidden');
+}
+function connect(u,k){
+  try{sb=supabase.createClient(u,k);$('status').textContent='Connected'}
+  catch(e){$('loginMsg').textContent=e.message}
+}
+function saveConfig(){
+  const u=$('sbUrl').value.trim(),k=$('sbKey').value.trim();
+  if(!u||!k)return alert('URL और Key दोनों भरें');
+  localStorage.setItem('ks_sb_url',u);localStorage.setItem('ks_sb_key',k);
+  $('configBox').classList.add('hidden');$('authBox').classList.remove('hidden');connect(u,k)
+}
+async function login(){
+  const {error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
+  if(error)$('loginMsg').textContent=error.message;else startApp()
+}
+async function signup(){
+  const {error}=await sb.auth.signUp({email:$('email').value.trim(),password:$('password').value});
+  if(error)$('loginMsg').textContent=error.message;
+  else $('loginMsg').textContent='Admin बनाया गया। यदि email confirmation चालू है तो email confirm करके Login करें.'
+}
+async function logout(){await sb.auth.signOut();location.reload()}
+async function startApp(){
+  $('login').classList.add('hidden');$('app').classList.remove('hidden');
+  const today=new Date().toISOString().slice(0,10);
+  $('inDate').value=today;$('exDate').value=today;await loadAll()
+}
+function clear(ids){ids.forEach(x=>$(x).value='')}
+
+function normalizePhone(v){return String(v||'').replace(/\D/g,'').slice(-10)}
+function normalizeName(v){return String(v||'').trim().toLowerCase()}
+
+function findMemberFor(name,phone){
+  const p=normalizePhone(phone), n=normalizeName(name);
+  return members.find(m=>{
+    const mp=normalizePhone(m.phone);
+    const mn=normalizeName(m.name);
+    return (p && mp && p===mp) || (n && mn===n);
+  }) || null;
+}
+
+async function addIncome(){
+  const amount=+$('inAmount').value;
+  const name=$('inName').value.trim(), phone=$('inPhone').value.trim();
+  if(!name||!amount)return alert('नाम और राशि भरें');
+  const member=findMemberFor(name,phone);
+  const payload={
+    name,phone,amount,
+    reason:$('inReason').value,payment_mode:$('inMode').value,entry_date:$('inDate').value
+  };
+  if(member)payload.member_id=member.id;
+
+  let result=await sb.from('income').insert(payload);
+  if(result.error && member && /member_id|column/i.test(result.error.message)){
+    delete payload.member_id;
+    result=await sb.from('income').insert(payload);
+  }
+  if(result.error)return alert(result.error.message);
+  alert(member?'जमा सेव हो गया और सदस्य खाते से जोड़ दिया गया।':'जमा सेव हो गया।');
+  clear(['inName','inPhone','inAmount','inReason']);await loadAll()
+}
+
+async function addExpense(){
+  const amount=+$('exAmount').value;
+  if(!$('exPayee').value.trim()||!amount)return alert('नाम और राशि भरें');
+  const result=await sb.from('expense').insert({
+    payee:$('exPayee').value.trim(),amount,reason:$('exReason').value,
+    payment_mode:$('exMode').value,entry_date:$('exDate').value
+  });
+  if(result.error)return alert(result.error.message);
+  alert('खर्च सेव हो गया');clear(['exPayee','exAmount','exReason']);await loadAll()
+}
+
+async function addMember(){
+  if(!$('mName').value.trim())return alert('नाम भरें');
+  const result=await sb.from('members').insert({
+    name:$('mName').value.trim(),phone:$('mPhone').value.trim(),
+    village:$('mVillage').value,note:$('mNote').value
+  });
+  if(result.error)return alert(result.error.message);
+  alert('सदस्य सेव हो गया');clear(['mName','mPhone','mVillage','mNote']);await loadAll()
+}
+
+async function loadAll(){
+  if(!sb)return;
+  const a=await sb.from('income').select('*').order('entry_date',{ascending:false});
+  const b=await sb.from('expense').select('*').order('entry_date',{ascending:false});
+  const c=await sb.from('members').select('*').order('name');
+  if(a.error||b.error||c.error){
+    $('status').textContent='DB tables missing';
+    console.log(a.error,b.error,c.error);
+    return
+  }
+  incomes=a.data||[];expenses=b.data||[];members=c.data||[];render()
+}
+
+function render(){
+  const ti=incomes.reduce((s,x)=>s+Number(x.amount||0),0);
+  const te=expenses.reduce((s,x)=>s+Number(x.amount||0),0);
+  $('totalIn').textContent=money(ti);$('totalOut').textContent=money(te);$('balance').textContent=money(ti-te);
+
+  const rows=[...incomes.map(x=>[x.entry_date,'जमा',x.name,x.reason,x.payment_mode,x.amount]),
+    ...expenses.map(x=>[x.entry_date,'खर्च',x.payee,x.reason,x.payment_mode,-Number(x.amount||0)])]
+    .sort((a,b)=>String(b[0]).localeCompare(String(a[0])));
+
+  $('ledgerTable').innerHTML='<table><tr><th>तारीख</th><th>प्रकार</th><th>नाम</th><th>कारण</th><th>Mode</th><th>राशि</th></tr>'+
+    rows.map(r=>'<tr>'+r.map(v=>'<td>'+escapeHtml(String(v??''))+'</td>').join('')+'</tr>').join('')+'</table>';
+
+  $('membersTable').innerHTML=
+    '<table><tr><th>नाम</th><th>मोबाइल</th><th>गांव/पता</th><th>नोट</th><th>खाता</th></tr>'+
+    members.map(x=>'<tr class="member-row" onclick="openMemberAccount('+JSON.stringify(String(x.id||''))+')">'+
+      '<td class="member-name member-open">'+escapeHtml(x.name)+'</td>'+
+      '<td>'+escapeHtml(x.phone||'')+'</td>'+
+      '<td>'+escapeHtml(x.village||'')+'</td>'+
+      '<td>'+escapeHtml(x.note||'')+'</td>'+
+      '<td><button class="btn" onclick="event.stopPropagation();openMemberAccount('+JSON.stringify(String(x.id||''))+')">📖 खाता खोलें</button></td>'+
+    '</tr>').join('')+'</table>'
+}
+
+async function openMemberAccount(id){
+  const m=members.find(x=>String(x.id)===String(id));
+  if(!m)return alert('सदस्य नहीं मिला');
+  currentMember=m;
+
+  $('tab-members').classList.add('hidden');
+  $('tab-income').classList.add('hidden');
+  $('tab-expense').classList.add('hidden');
+  $('tab-ledger').classList.add('hidden');
+  $('memberAccount').classList.remove('hidden');
+
+  // पहले Member ID से रिकॉर्ड लें
+  let memberIncome=[], memberExpense=[];
+  let a=await sb.from('income').select('*').eq('member_id',m.id).order('entry_date',{ascending:false});
+  let b=await sb.from('expense').select('*').eq('member_id',m.id).order('entry_date',{ascending:false});
+
+  // पुराने records जिनमें member_id नहीं है, उनके लिए phone/name fallback
+  const mp=normalizePhone(m.phone), mn=normalizeName(m.name);
+  const oldIncome=incomes.filter(x=>{
+    if(x.member_id!=null && String(x.member_id)===String(m.id))return true;
+    const xp=normalizePhone(x.phone), xn=normalizeName(x.name);
+    return !x.member_id && ((mp&&xp&&mp===xp)||(!mp&&mn&&xn===mn)||(mp&&!xp&&mn===xn));
+  });
+  const oldExpense=expenses.filter(x=>{
+    if(x.member_id!=null && String(x.member_id)===String(m.id))return true;
+    return false;
+  });
+
+  memberIncome=(a.error?[]:(a.data||[]));
+  memberExpense=(b.error?[]:(b.data||[]));
+
+  const mergeUnique=(arr, extra)=>{
+    const seen=new Set(arr.map(x=>String(x.id)));
+    extra.forEach(x=>{if(!seen.has(String(x.id))){arr.push(x);seen.add(String(x.id))}});
+    return arr;
+  };
+  memberIncome=mergeUnique(memberIncome,oldIncome);
+  memberExpense=mergeUnique(memberExpense,oldExpense);
+  memberIncome.sort((x,y)=>String(y.entry_date||'').localeCompare(String(x.entry_date||'')));
+  memberExpense.sort((x,y)=>String(y.entry_date||'').localeCompare(String(x.entry_date||'')));
+
+  const totalIn=memberIncome.reduce((s,x)=>s+Number(x.amount||0),0);
+  const totalOut=memberExpense.reduce((s,x)=>s+Number(x.amount||0),0);
+
+  $('memberInfo').innerHTML='<b>नाम:</b> '+escapeHtml(m.name||'')+
+    ' &nbsp; | &nbsp; <b>मोबाइल:</b> '+escapeHtml(m.phone||'')+
+    ' &nbsp; | &nbsp; <b>गांव/पता:</b> '+escapeHtml(m.village||'');
+
+  $('memberTotalIn').textContent=money(totalIn);
+  $('memberTotalOut').textContent=money(totalOut);
+  $('memberBalance').textContent=money(totalIn-totalOut);
+
+  const all=[
+    ...memberIncome.map(x=>({date:x.entry_date,type:'जमा',doc:x.receipt_no||'',reason:x.reason||x.category||'',mode:x.payment_mode||x.mode||'',amount:Number(x.amount||0)})),
+    ...memberExpense.map(x=>({date:x.entry_date,type:'खर्च',doc:x.voucher_no||'',reason:x.reason||x.category||'',mode:x.payment_mode||x.mode||'',amount:-Number(x.amount||0)}))
+  ].sort((x,y)=>String(y.date||'').localeCompare(String(x.date||'')));
+
+  $('memberAccountTable').innerHTML=
+    '<table><tr><th>तारीख</th><th>प्रकार</th><th>रसीद/Voucher</th><th>कारण</th><th>Mode</th><th>राशि</th></tr>'+
+    all.map(x=>'<tr><td>'+escapeHtml(x.date||'')+'</td><td>'+escapeHtml(x.type)+'</td><td>'+
+      escapeHtml(x.doc||'')+'</td><td>'+escapeHtml(x.reason||'')+'</td><td>'+
+      escapeHtml(x.mode||'')+'</td><td>'+money(x.amount)+'</td></tr>').join('')+
+    '</table>';
+
+  if(!all.length){
+    $('memberAccountTable').innerHTML='<div class="msg">इस सदस्य के नाम से अभी कोई जमा/खर्च रिकॉर्ड नहीं मिला। आगे की जमा इस सदस्य के खाते से अपने आप जुड़ेगी।</div>';
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function closeMemberAccount(){
+  currentMember=null;
+  $('memberAccount').classList.add('hidden');
+  showTab('members');
+}
+
+function whatsappMemberStatement(){
+  if(!currentMember)return;
+  const rows=incomes.filter(x=>{
+    const p=normalizePhone(currentMember.phone),xp=normalizePhone(x.phone);
+    const n=normalizeName(currentMember.name),xn=normalizeName(x.name);
+    return (x.member_id!=null && String(x.member_id)===String(currentMember.id)) ||
+      (!x.member_id && ((p&&xp&&p===xp)||(!p&&n===xn)||(p&&!xp&&n===xn)));
+  });
+  const total=rows.reduce((s,x)=>s+Number(x.amount||0),0);
+  const text='कुमावत समाज विकास संस्था, बिबवेवाड़ी, पुणे\n\nसदस्य खाते का विवरण\nनाम: '+(currentMember.name||'')+
+    '\nमोबाइल: '+(currentMember.phone||'')+
+    '\nकुल जमा: ₹'+total.toLocaleString('en-IN')+
+    '\nकुल जमा प्रविष्टियां: '+rows.length;
+  window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');
+}
+
+function printMemberAccount(){
+  const w=window.open('','_blank');
+  if(!w)return alert('Popup blocked है। Browser में popup allow करें।');
+  w.document.write('<html><head><title>सदस्य खाता</title><style>body{font-family:Arial;padding:25px}table{width:100%;border-collapse:collapse}th,td{padding:8px;border:1px solid #ddd;text-align:left}h2{color:#8d1f20}</style></head><body>');
+  w.document.write($('memberAccountPrint').innerHTML);
+  w.document.write('</body></html>');
+  w.document.close();w.focus();w.print();w.close()
+}
+
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+function showTab(t){
+  $('memberAccount').classList.add('hidden');
+  ['income','expense','members','ledger'].forEach(x=>$('tab-'+x).classList.toggle('hidden',x!==t));
+  window.scrollTo({top:0,behavior:'smooth'})
+}
+function printLedger(){
+  const w=window.open('','_blank');if(!w)return alert('Popup blocked है।');
+  w.document.write('<h2>कुमावत समाज विकास संस्था, बिबवेवाड़ी, पुणे</h2>'+$('ledgerTable').innerHTML);
+  w.print();w.close()
+}
+function exportCSV(){
+  let rows=[['Date','Type','Name','Reason','Mode','Amount'],
+    ...incomes.map(x=>[x.entry_date,'Income',x.name,x.reason,x.payment_mode,x.amount]),
+    ...expenses.map(x=>[x.entry_date,'Expense',x.payee,x.reason,x.payment_mode,x.amount])];
+  let csv=rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\n');
+  let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='kumawat_samaj_ledger.csv';a.click()
+}
+sb&&sb.auth.getSession().then(({data})=>data.session&&startApp());
+init();
+</script>
+</body>
+</html>
